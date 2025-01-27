@@ -95,7 +95,7 @@ fn generate_table_struct_and_impls<
 
             let r#type = match (&field_config.override_type, field_config.id_promote_mode) {
                 (Some(r#type), _) => r#type.clone(),
-                (None, IdPromoteMode::None) => TypeGen::sql_datatype_to_rust_type(&column.data_type),
+                (None, IdPromoteMode::None) => TypeGen::sql_datatype_to_rust_type(&column.data_type).unwrap(),
                 (None, IdPromoteMode::TrustedId) => todo!(),
                 (None, IdPromoteMode::Id) => todo!(),
             };

@@ -1,14 +1,20 @@
+use thiserror::Error;
+
 use crate::rust::TableStructField;
 
 use super::TableStruct;
 
 pub trait TypeGenerator<Traits: rasql_traits::DbTraits> {
-    fn sql_datatype_to_rust_type(datatype: &sqlparser::ast::DataType) -> syn::Type;
+    fn sql_datatype_to_rust_type(
+        datatype: &sqlparser::ast::DataType,
+    ) -> Result<syn::Type, UnsupportedDataType>;
 
     fn generate_table_struct(table_struct: &TableStruct) -> proc_macro2::TokenStream;
 }
 
-
+#[derive(Debug, Error)]
+#[error("Type generator does not support the following SQL datatype: {0}")]
+pub struct UnsupportedDataType(pub sqlparser::ast::DataType);
 
 #[cfg(feature = "tokio-postgres")]
 pub struct TokioPostgresGenerator;
@@ -26,8 +32,10 @@ impl TokioPostgresGenerator {
 
 #[cfg(feature = "tokio-postgres")]
 impl TypeGenerator<rasql_traits::PostgresTypesTraits> for TokioPostgresGenerator {
-    fn sql_datatype_to_rust_type(datatype: &sqlparser::ast::DataType) -> syn::Type {
-        match datatype {
+    fn sql_datatype_to_rust_type(
+        datatype: &sqlparser::ast::DataType,
+    ) -> Result<syn::Type, UnsupportedDataType> {
+        Ok(match datatype {
             sqlparser::ast::DataType::Character(..)
             | sqlparser::ast::DataType::Char(..)
             | sqlparser::ast::DataType::CharacterVarying(..)
@@ -39,37 +47,32 @@ impl TypeGenerator<rasql_traits::PostgresTypesTraits> for TokioPostgresGenerator
             | sqlparser::ast::DataType::MediumText
             | sqlparser::ast::DataType::LongText
             | sqlparser::ast::DataType::String(_)
-            | sqlparser::ast::DataType::FixedString(_) => syn::Type::Verbatim(quote::quote! {String}),
-            sqlparser::ast::DataType::Uuid => todo!(),
-            sqlparser::ast::DataType::CharacterLargeObject(_) => todo!(),
-            sqlparser::ast::DataType::CharLargeObject(_) => todo!(),
-            sqlparser::ast::DataType::Clob(_) => todo!(),
-            sqlparser::ast::DataType::Binary(_) => todo!(),
-            sqlparser::ast::DataType::Varbinary(_) => todo!(),
-            sqlparser::ast::DataType::Blob(_) => todo!(),
-            sqlparser::ast::DataType::TinyBlob => todo!(),
-            sqlparser::ast::DataType::MediumBlob => todo!(),
-            sqlparser::ast::DataType::LongBlob => todo!(),
-            sqlparser::ast::DataType::Bytes(_) => todo!(),
-            sqlparser::ast::DataType::Numeric(exact_number_info) => todo!(),
-            sqlparser::ast::DataType::Decimal(exact_number_info) => todo!(),
-            sqlparser::ast::DataType::BigNumeric(exact_number_info) => todo!(),
-            sqlparser::ast::DataType::BigDecimal(exact_number_info) => todo!(),
-            sqlparser::ast::DataType::Dec(exact_number_info) => todo!(),
-            sqlparser::ast::DataType::Float(_) => todo!(),
-            sqlparser::ast::DataType::TinyInt(_) => todo!(),
-            sqlparser::ast::DataType::UnsignedTinyInt(_) => todo!(),
-            sqlparser::ast::DataType::Int2(_) => todo!(),
-            sqlparser::ast::DataType::UnsignedInt2(_) => todo!(),
-            sqlparser::ast::DataType::SmallInt(_) => todo!(),
-            sqlparser::ast::DataType::UnsignedSmallInt(_) => todo!(),
-            sqlparser::ast::DataType::MediumInt(_) => todo!(),
-            sqlparser::ast::DataType::UnsignedMediumInt(_) => todo!(),
-            sqlparser::ast::DataType::Int(_) => todo!(),
+            | sqlparser::ast::DataType::FixedString(_) => {
+                syn::Type::Verbatim(quote::quote! {String})
+            }
+            #[cfg(feature = "uuid")]
+            sqlparser::ast::DataType::Uuid => syn::Type::Verbatim(quote::quote! {uuid::Uuid}),
+            sqlparser::ast::DataType::Varbinary(_)
+            | sqlparser::ast::DataType::Blob(_)
+            | sqlparser::ast::DataType::TinyBlob
+            | sqlparser::ast::DataType::MediumBlob
+            | sqlparser::ast::DataType::LongBlob
+            | sqlparser::ast::DataType::Bytes(_)
+            | sqlparser::ast::DataType::Bytea
+            | sqlparser::ast::DataType::Binary(_) => syn::Type::Verbatim(quote::quote! {Vec<u8>}),
+            #[cfg(feature = "rust_decimal")]
+            sqlparser::ast::DataType::Numeric(..)
+            | sqlparser::ast::DataType::Decimal(..)
+            | sqlparser::ast::DataType::Dec(..) => {
+                syn::Type::Verbatim(quote::quote! {rust_decimal::Decimal})
+            }
+            sqlparser::ast::DataType::Int2(_) => syn::Type::Verbatim(quote::quote! {i16}),
+            sqlparser::ast::DataType::UnsignedInt2(_) => syn::Type::Verbatim(quote::quote! {u16}),
             sqlparser::ast::DataType::Int16 => todo!(),
             sqlparser::ast::DataType::Int128 => todo!(),
             sqlparser::ast::DataType::Int256 => todo!(),
-            sqlparser::ast::DataType::Int32
+            sqlparser::ast::DataType::Int(_)
+            | sqlparser::ast::DataType::Int32
             | sqlparser::ast::DataType::Int4(_)
             | sqlparser::ast::DataType::Integer(_) => syn::Type::Verbatim(quote::quote! {i32}),
             sqlparser::ast::DataType::UnsignedInt(_) => todo!(),
@@ -86,7 +89,8 @@ impl TypeGenerator<rasql_traits::PostgresTypesTraits> for TokioPostgresGenerator
             | sqlparser::ast::DataType::BigInt(_) => syn::Type::Verbatim(quote::quote! {i64}),
             sqlparser::ast::DataType::UnsignedBigInt(_) => todo!(),
             sqlparser::ast::DataType::UnsignedInt8(_) => todo!(),
-            sqlparser::ast::DataType::Float4
+            sqlparser::ast::DataType::Float(_)
+            | sqlparser::ast::DataType::Float4
             | sqlparser::ast::DataType::Real
             | sqlparser::ast::DataType::Float32 => syn::Type::Verbatim(quote::quote! {f32}),
             sqlparser::ast::DataType::Float64
@@ -105,15 +109,19 @@ impl TypeGenerator<rasql_traits::PostgresTypesTraits> for TokioPostgresGenerator
             sqlparser::ast::DataType::JSON => todo!(),
             sqlparser::ast::DataType::JSONB => todo!(),
             sqlparser::ast::DataType::Regclass => todo!(),
-            sqlparser::ast::DataType::Bytea => todo!(),
             sqlparser::ast::DataType::Bit(_) => todo!(),
             sqlparser::ast::DataType::BitVarying(_) => todo!(),
             sqlparser::ast::DataType::Custom(object_name, vec) => todo!(),
             sqlparser::ast::DataType::Array(array_elem_type_def) => match array_elem_type_def {
-                sqlparser::ast::ArrayElemTypeDef::None => unimplemented!(),
+                sqlparser::ast::ArrayElemTypeDef::None => {
+                    return Err(UnsupportedDataType(datatype.clone()))
+                }
                 sqlparser::ast::ArrayElemTypeDef::AngleBracket(data_type)
                 | sqlparser::ast::ArrayElemTypeDef::SquareBracket(data_type, _)
-                | sqlparser::ast::ArrayElemTypeDef::Parenthesis(data_type) => todo!(),
+                | sqlparser::ast::ArrayElemTypeDef::Parenthesis(data_type) => {
+                    let inner_type = Self::sql_datatype_to_rust_type(&datatype)?;
+                    syn::Type::Verbatim(quote::quote! {Vec<#inner_type>})
+                }
             },
             sqlparser::ast::DataType::Map(data_type, data_type1) => todo!(),
             sqlparser::ast::DataType::Tuple(vec) => todo!(),
@@ -124,12 +132,11 @@ impl TypeGenerator<rasql_traits::PostgresTypesTraits> for TokioPostgresGenerator
             sqlparser::ast::DataType::Union(vec) => todo!(),
             sqlparser::ast::DataType::Nullable(data_type) => todo!(),
             sqlparser::ast::DataType::LowCardinality(data_type) => todo!(),
-            sqlparser::ast::DataType::Unspecified => todo!(),
             sqlparser::ast::DataType::Trigger => todo!(),
-            sqlparser::ast::DataType::AnyType => todo!(),
-        }
+            _ => return Err(UnsupportedDataType(datatype.clone())),
+        })
     }
-    
+
     fn generate_table_struct(table_struct: &TableStruct) -> proc_macro2::TokenStream {
         let TableStruct {
             name,

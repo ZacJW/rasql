@@ -9,6 +9,8 @@ description = "SQL analysis and Rust type generation for Rasql"
 
 [features]
 tokio-postgres = ["rasql-traits/tokio-postgres", "dep:tokio-postgres"]
+uuid = ["dep:uuid"]
+rust_decimal = ["dep:rust_decimal"]
 
 [dependencies]
 sqlparser = "0.54.0"
@@ -18,3 +20,6 @@ proc-macro2 = "1.0.93"
 syn = { version = "2.0.96", features = ["full"] }
 tokio-postgres = { version = "0.7.12", optional = true }
 convert_case = "0.7.1"
+thiserror = "2.0.11"
+uuid = { version = "1.12.1", optional = true }
+rust_decimal = { version = "1.36.0", optional = true }
