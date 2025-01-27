@@ -5,4 +5,5 @@ members = [
     "rasql-build",
     "rasql-core",
     "rasql-query",
+    "rasql-traits",
 ]

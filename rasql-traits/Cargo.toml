@@ -1,0 +1,10 @@
+[package]
+name = "rasql-traits"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio-postgres = { version = "0.7.12", optional = true }
+
+[features]
+tokio-postgres = ["dep:tokio-postgres"]
