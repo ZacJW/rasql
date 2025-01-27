@@ -55,6 +55,8 @@ fn generate_table_struct_and_impls<
 >(
     table: &crate::sql::Table,
     module_config: Option<&ModuleCodeGenConfig>,
+    type_gen: &TypeGen,
+    client_gen: &ClientGen,
 ) -> (GeneratedTableStruct, TableStructImpls) {
     let name = sql_ident_to_type_name(table.name.0.last().unwrap());
     let default_struct_config = StructCodeGenConfig {
@@ -95,7 +97,7 @@ fn generate_table_struct_and_impls<
 
             let r#type = match (&field_config.override_type, field_config.id_promote_mode) {
                 (Some(r#type), _) => r#type.clone(),
-                (None, IdPromoteMode::None) => TypeGen::sql_datatype_to_rust_type(&column.data_type).unwrap(),
+                (None, IdPromoteMode::None) => type_gen.sql_datatype_to_rust_type(&column.data_type).unwrap(),
                 (None, IdPromoteMode::TrustedId) => todo!(),
                 (None, IdPromoteMode::Id) => todo!(),
             };
@@ -114,7 +116,7 @@ fn generate_table_struct_and_impls<
         db_alias: todo!(),
     };
     (
-        GeneratedTableStruct(TypeGen::generate_table_struct(&table_struct)),
+        GeneratedTableStruct(type_gen.generate_table_struct(&table_struct)),
         TableStructImpls {
             base_table_impl: todo!(),
             table_with_pk_impl: todo!(),

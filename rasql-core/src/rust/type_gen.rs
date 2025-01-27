@@ -6,10 +6,11 @@ use super::TableStruct;
 
 pub trait TypeGenerator<Traits: rasql_traits::DbTraits> {
     fn sql_datatype_to_rust_type(
+        &self,
         datatype: &sqlparser::ast::DataType,
     ) -> Result<syn::Type, UnsupportedDataType>;
 
-    fn generate_table_struct(table_struct: &TableStruct) -> proc_macro2::TokenStream;
+    fn generate_table_struct(&self, table_struct: &TableStruct) -> proc_macro2::TokenStream;
 }
 
 #[derive(Debug, Error)]
@@ -17,7 +18,23 @@ pub trait TypeGenerator<Traits: rasql_traits::DbTraits> {
 pub struct UnsupportedDataType(pub sqlparser::ast::DataType);
 
 #[cfg(feature = "tokio-postgres")]
-pub struct TokioPostgresGenerator;
+pub struct TokioPostgresGenerator {
+    pub use_rust_decimal: UseRustDecimal,
+    pub use_uuid: UseUuid,
+}
+
+#[cfg(feature = "tokio-postgres")]
+pub enum UseRustDecimal {
+    DontUse,
+    Version1,
+}
+
+#[cfg(feature = "tokio-postgres")]
+pub enum UseUuid {
+    DontUse,
+    Version0_8,
+    Version1,
+}
 
 #[cfg(feature = "tokio-postgres")]
 impl TokioPostgresGenerator {
@@ -33,6 +50,7 @@ impl TokioPostgresGenerator {
 #[cfg(feature = "tokio-postgres")]
 impl TypeGenerator<rasql_traits::PostgresTypesTraits> for TokioPostgresGenerator {
     fn sql_datatype_to_rust_type(
+        &self,
         datatype: &sqlparser::ast::DataType,
     ) -> Result<syn::Type, UnsupportedDataType> {
         Ok(match datatype {
@@ -50,8 +68,11 @@ impl TypeGenerator<rasql_traits::PostgresTypesTraits> for TokioPostgresGenerator
             | sqlparser::ast::DataType::FixedString(_) => {
                 syn::Type::Verbatim(quote::quote! {String})
             }
-            #[cfg(feature = "uuid")]
-            sqlparser::ast::DataType::Uuid => syn::Type::Verbatim(quote::quote! {uuid::Uuid}),
+            sqlparser::ast::DataType::Uuid
+                if matches!(self.use_uuid, UseUuid::Version0_8 | UseUuid::Version1) =>
+            {
+                syn::Type::Verbatim(quote::quote! {uuid::Uuid})
+            }
             sqlparser::ast::DataType::Varbinary(_)
             | sqlparser::ast::DataType::Blob(_)
             | sqlparser::ast::DataType::TinyBlob
@@ -60,10 +81,11 @@ impl TypeGenerator<rasql_traits::PostgresTypesTraits> for TokioPostgresGenerator
             | sqlparser::ast::DataType::Bytes(_)
             | sqlparser::ast::DataType::Bytea
             | sqlparser::ast::DataType::Binary(_) => syn::Type::Verbatim(quote::quote! {Vec<u8>}),
-            #[cfg(feature = "rust_decimal")]
             sqlparser::ast::DataType::Numeric(..)
             | sqlparser::ast::DataType::Decimal(..)
-            | sqlparser::ast::DataType::Dec(..) => {
+            | sqlparser::ast::DataType::Dec(..)
+                if matches!(self.use_rust_decimal, UseRustDecimal::Version1) =>
+            {
                 syn::Type::Verbatim(quote::quote! {rust_decimal::Decimal})
             }
             sqlparser::ast::DataType::Int2(_) => syn::Type::Verbatim(quote::quote! {i16}),
@@ -119,7 +141,7 @@ impl TypeGenerator<rasql_traits::PostgresTypesTraits> for TokioPostgresGenerator
                 sqlparser::ast::ArrayElemTypeDef::AngleBracket(data_type)
                 | sqlparser::ast::ArrayElemTypeDef::SquareBracket(data_type, _)
                 | sqlparser::ast::ArrayElemTypeDef::Parenthesis(data_type) => {
-                    let inner_type = Self::sql_datatype_to_rust_type(&datatype)?;
+                    let inner_type = self.sql_datatype_to_rust_type(&datatype)?;
                     syn::Type::Verbatim(quote::quote! {Vec<#inner_type>})
                 }
             },
@@ -137,7 +159,7 @@ impl TypeGenerator<rasql_traits::PostgresTypesTraits> for TokioPostgresGenerator
         })
     }
 
-    fn generate_table_struct(table_struct: &TableStruct) -> proc_macro2::TokenStream {
+    fn generate_table_struct(&self, table_struct: &TableStruct) -> proc_macro2::TokenStream {
         let TableStruct {
             name,
             fields,
