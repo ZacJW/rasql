@@ -5,4 +5,14 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+tokio-postgres = ["rasql-traits/tokio-postgres", "dep:tokio-postgres"]
+
 [dependencies]
+sqlparser = "0.54.0"
+rasql-traits = { version = "0.1.0", path = "../rasql-traits" }
+quote = "1.0.35"
+proc-macro2 = "1.0.93"
+syn = { version = "2.0.96", features = ["full"] }
+tokio-postgres = { version = "0.7.12", optional = true }
+convert_case = "0.7.1"
