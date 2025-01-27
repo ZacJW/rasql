@@ -32,6 +32,11 @@ would like to hold type definitions, you can use this from your crate's build sc
 automatically typed row output to prevent runtime type errors. This depends on you already using
 `rasql-build`.
 
+## `rasql-traits`
+
+`rasql-traits` provides trait definitions for various database operations and types. The types that
+`rasql-core` generates implement these traits depending on the generation config.
+
 ## Acknowledgements
 
 Rasql builds upon the work of the [sqlparser-rs](https://github.com/sqlparser-rs/sqlparser-rs)
