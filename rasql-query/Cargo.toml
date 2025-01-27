@@ -1,7 +1,9 @@
 [package]
 name = "rasql-query"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
+license = "MIT"
+description = "Procedural macros for Rasql powered queries in Rust"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
